@@ -107,9 +107,14 @@ jobs:
       - name: Install SFML 3.0.2
         shell: pwsh
         run: |
-          Invoke-WebRequest `
-            -Uri "https://github.com/SFML/SFML/releases/download/3.0.2/SFML-3.0.2-Windows.VS2022.x64.zip" `
-            -OutFile sfml.zip
+          curl.exe `
+            --retry 5 `
+            --retry-delay 10 `
+            --retry-all-errors `
+            --location `
+            --fail `
+            --output sfml.zip `
+            "https://github.com/SFML/SFML/releases/download/3.0.2/SFML-3.0.2-Windows.VS2022.x64.zip"
 
           Expand-Archive `
             -Path sfml.zip `
