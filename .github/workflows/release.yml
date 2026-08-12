@@ -84,12 +84,16 @@ jobs:
 
           cp build/blackhole package/blackhole
 
+          cp build/benchmark package/benchmark
+
           cp -r build/assets package/assets
 
           tar \
             -czf blackhole-linux-x64.tar.gz \
             -C package \
-            blackhole
+            blackhole \
+            benchmark \
+            assets
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
@@ -167,6 +171,10 @@ jobs:
           Copy-Item `
             build/Release/blackhole.exe `
             package/blackhole.exe
+
+          Copy-Item `
+            build/Release/benchmark.exe `
+            package/benchmark.exe
 
           Copy-Item `
             -Recurse `
