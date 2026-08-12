@@ -1,7 +1,6 @@
 #include <SFML/Graphics.hpp>
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
 #include <ctime>
 #include <vector>
 #include <sstream>
@@ -13,6 +12,7 @@ struct Particle
     sf::Vector2f position;
     sf::Vector2f velocity;
     sf::Vector2f previousPosition;
+    float speed;
 };
 
 constexpr unsigned int WIDTH = 1280;
@@ -24,16 +24,18 @@ constexpr float EVENT_HORIZON = 18.0f;
 
 constexpr int PARTICLES_PER_STEP = 1000;
 
+unsigned int rngState = 0;
+
 float randomFloat(float min, float max)
 {
-    return min +
-        static_cast<float>(std::rand()) / RAND_MAX *
-        (max - min);
-}
+    rngState ^= rngState << 13;
+    rngState ^= rngState >> 17;
+    rngState ^= rngState << 5;
 
-float length(sf::Vector2f v)
-{
-    return std::sqrt(v.x * v.x + v.y * v.y);
+    float t =
+        static_cast<float>(rngState) / 4294967295.0f;
+
+    return min + t * (max - min);
 }
 
 Particle createParticle(sf::Vector2f blackHole)
@@ -64,6 +66,8 @@ Particle createParticle(sf::Vector2f blackHole)
 
     p.velocity.x *= randomness;
     p.velocity.y *= randomness;
+
+    p.speed = orbitalSpeed * randomness;
 
     return p;
 }
@@ -306,9 +310,10 @@ void drawHud(
 
 int main()
 {
-    std::srand(
-        static_cast<unsigned>(std::time(nullptr))
-    );
+    rngState =
+        static_cast<unsigned>(
+            std::time(nullptr)
+        ) | 1u;
 
     sf::RenderWindow window(
         sf::VideoMode({WIDTH, HEIGHT}),
@@ -377,6 +382,76 @@ int main()
     blackHoleShape.setFillColor(
         sf::Color::Black
     );
+
+    // =========================================================
+    // ACCRETION DISK & GLOW (built once, static per frame)
+    // =========================================================
+
+    sf::CircleShape disk(
+        130.0f
+    );
+
+    disk.setOrigin(
+        {130.0f, 130.0f}
+    );
+
+    disk.setPosition(
+        blackHole
+    );
+
+    disk.setScale(
+        {1.0f, 0.25f}
+    );
+
+    disk.setFillColor(
+        sf::Color(
+            255,
+            100,
+            20,
+            25
+        )
+    );
+
+    std::vector<sf::CircleShape> glowCircles;
+
+    glowCircles.reserve(6);
+
+    for (int radius = 80;
+         radius > 20;
+         radius -= 10)
+    {
+        sf::CircleShape glow(
+            static_cast<float>(radius)
+        );
+
+        glow.setOrigin(
+            {
+                static_cast<float>(radius),
+                static_cast<float>(radius)
+            }
+        );
+
+        glow.setPosition(
+            blackHole
+        );
+
+        std::uint8_t alpha =
+            static_cast<std::uint8_t>(
+                2 +
+                (80 - radius)
+            );
+
+        glow.setFillColor(
+            sf::Color(
+                255,
+                100,
+                20,
+                alpha
+            )
+        );
+
+        glowCircles.push_back(glow);
+    }
 
     // =========================================================
     // PARTICLE RENDERING
@@ -555,11 +630,12 @@ int main()
                 sf::Vector2f direction =
                     blackHole - p.position;
 
-                float distance =
-                    length(direction);
+                float distanceSq =
+                    direction.x * direction.x +
+                    direction.y * direction.y;
 
-                if (distance <
-                    EVENT_HORIZON)
+                if (distanceSq <
+                    EVENT_HORIZON * EVENT_HORIZON)
                 {
                     p =
                         createParticle(
@@ -571,15 +647,12 @@ int main()
 
                 float acceleration =
                     G * BLACK_HOLE_MASS /
-                    (distance * distance);
-
-                sf::Vector2f normalized =
-                    direction / distance;
+                    distanceSq;
 
                 p.velocity +=
-                    normalized *
-                    acceleration *
-                    dt;
+                    direction *
+                    (acceleration * dt /
+                     std::sqrt(distanceSq));
 
                 p.position +=
                     p.velocity *
@@ -598,7 +671,15 @@ int main()
                         createParticle(
                             blackHole
                         );
+
+                    continue;
                 }
+
+                p.speed =
+                    std::sqrt(
+                        p.velocity.x * p.velocity.x +
+                        p.velocity.y * p.velocity.y
+                    );
             }
         }
 
@@ -624,9 +705,7 @@ int main()
                 particles[i].position;
 
             float speed =
-                length(
-                    particles[i].velocity
-                );
+                particles[i].speed;
 
             sf::Color color =
                 sf::Color::White;
@@ -722,80 +801,13 @@ int main()
 
         // Accretion disk
         if (diskEnabled)
-        {
-            sf::CircleShape disk(
-                130.0f
-            );
-
-            disk.setOrigin(
-                {130.0f, 130.0f}
-            );
-
-            disk.setPosition(
-                blackHole
-            );
-
-            disk.setScale(
-                {1.0f, 0.25f}
-            );
-
-            disk.setFillColor(
-                sf::Color(
-                    255,
-                    100,
-                    20,
-                    25
-                )
-            );
-
             window.draw(disk);
-        }
 
         // Glow
         if (glowEnabled)
         {
-            for (int radius = 80;
-                 radius > 20;
-                 radius -= 10)
-            {
-                sf::CircleShape glow(
-                    static_cast<float>(
-                        radius
-                    )
-                );
-
-                glow.setOrigin(
-                    {
-                        static_cast<float>(
-                            radius
-                        ),
-                        static_cast<float>(
-                            radius
-                        )
-                    }
-                );
-
-                glow.setPosition(
-                    blackHole
-                );
-
-                std::uint8_t alpha =
-                    static_cast<std::uint8_t>(
-                        2 +
-                        (80 - radius)
-                    );
-
-                glow.setFillColor(
-                    sf::Color(
-                        255,
-                        100,
-                        20,
-                        alpha
-                    )
-                );
-
+            for (const auto& glow : glowCircles)
                 window.draw(glow);
-            }
         }
 
         // Particles
