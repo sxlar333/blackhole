@@ -9,42 +9,92 @@ permissions:
   contents: write
 
 jobs:
-  build-linux:
-    name: Build Linux
+  linux:
+    name: Linux x64
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install build dependencies
         run: |
           sudo apt update
           sudo apt install -y \
-            libsfml-dev \
             cmake \
-            build-essential
+            ninja-build \
+            build-essential \
+            git \
+            libxrandr-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libudev-dev \
+            libfreetype-dev \
+            libflac-dev \
+            libvorbis-dev \
+            libgl1-mesa-dev \
+            libegl1-mesa-dev
 
-      - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build SFML 3.0.2
+        run: |
+          git clone \
+            --depth 1 \
+            --branch 3.0.2 \
+            https://github.com/SFML/SFML.git \
+            sfml
 
-      - name: Build
-        run: cmake --build build --config Release -j2
+          cmake \
+            -S sfml \
+            -B sfml/build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/opt/sfml-3 \
+            -DSFML_BUILD_EXAMPLES=OFF \
+            -DSFML_BUILD_TEST_SUITE=OFF \
+            -DSFML_BUILD_DOC=OFF
+
+          cmake \
+            --build sfml/build \
+            --parallel 2
+
+          sudo cmake \
+            --install sfml/build
+
+      - name: Configure Black Hole
+        run: |
+          cmake \
+            -S . \
+            -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH=/opt/sfml-3
+
+      - name: Build Black Hole
+        run: |
+          cmake \
+            --build build \
+            --parallel 2
 
       - name: Package
         run: |
-          mkdir release
-          cp build/blackhole release/blackhole
-          tar -czf blackhole-linux-x64.tar.gz -C release blackhole
+          mkdir package
 
-      - name: Upload artifact
+          cp build/blackhole package/blackhole
+
+          tar \
+            -czf blackhole-linux-x64.tar.gz \
+            -C package \
+            blackhole
+
+      - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: blackhole-linux-x64
           path: blackhole-linux-x64.tar.gz
 
-  build-windows:
-    name: Build Windows
+
+  windows:
+    name: Windows x64
     runs-on: windows-latest
 
     steps:
@@ -56,34 +106,53 @@ jobs:
           vcpkg install sfml:x64-windows
 
       - name: Configure
+        shell: pwsh
         run: |
-          cmake -S . -B build `
-            -DCMAKE_BUILD_TYPE=Release `
+          cmake `
+            -S . `
+            -B build `
+            -G "Visual Studio 17 2022" `
+            -A x64 `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
 
       - name: Build
-        run: cmake --build build --config Release
+        run: |
+          cmake `
+            --build build `
+            --config Release
 
       - name: Package
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force release
-          Copy-Item build/Release/blackhole.exe release/blackhole.exe
+          New-Item `
+            -ItemType Directory `
+            -Force `
+            package
+
+          Copy-Item `
+            build/Release/blackhole.exe `
+            package/blackhole.exe
+
+          Copy-Item `
+            "$env:VCPKG_INSTALLATION_ROOT/installed/x64-windows/bin/*.dll" `
+            package/
+
           Compress-Archive `
-            -Path release/blackhole.exe `
+            -Path package/* `
             -DestinationPath blackhole-windows-x64.zip
 
-      - name: Upload artifact
+      - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: blackhole-windows-x64
           path: blackhole-windows-x64.zip
 
+
   release:
     name: Create GitHub Release
     needs:
-      - build-linux
-      - build-windows
+      - linux
+      - windows
 
     runs-on: ubuntu-latest
 
@@ -100,7 +169,7 @@ jobs:
           name: blackhole-windows-x64
           path: release
 
-      - name: Create Release
+      - name: Create release
         uses: softprops/action-gh-release@v2
         with:
           files: release/*
