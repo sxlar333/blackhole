@@ -1,5 +1,6 @@
 #include <SFML/Graphics.hpp>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <ctime>
 #include <vector>
@@ -116,6 +117,193 @@ sf::Color velocityColor(float speed)
     );
 }
 
+struct HudMetrics
+{
+    std::size_t particleCount;
+    float fps;
+    float physicsMs;
+    float renderMs;
+    float zoom;
+    bool paused;
+    bool brightnessEnabled;
+    bool diskEnabled;
+    bool trailsEnabled;
+    bool velocityColorsEnabled;
+    bool glowEnabled;
+};
+
+std::string hudToggle(bool enabled)
+{
+    return enabled ? "on" : "off";
+}
+
+void drawHud(
+    sf::RenderWindow& window,
+    const sf::Font& font,
+    const HudMetrics& m
+)
+{
+    const float panelMargin = 16.0f;
+    const float contentMargin = 16.0f;
+
+    std::ostringstream stats;
+    stats
+        << "particles  " << m.particleCount << "\n"
+        << "fps        "
+        << std::fixed
+        << std::setprecision(1)
+        << m.fps << "\n"
+        << "physics    "
+        << std::fixed
+        << std::setprecision(2)
+        << m.physicsMs
+        << " ms\n"
+        << "render     "
+        << std::fixed
+        << std::setprecision(2)
+        << m.renderMs
+        << " ms\n"
+        << "zoom       "
+        << std::fixed
+        << std::setprecision(1)
+        << m.zoom
+        << "x\n"
+        << "state      "
+        << (m.paused ? "paused" : "running");
+
+    std::ostringstream toggles;
+    toggles
+        << "brightness  "
+        << hudToggle(m.brightnessEnabled) << "\n"
+        << "disk        "
+        << hudToggle(m.diskEnabled) << "\n"
+        << "trails      "
+        << hudToggle(m.trailsEnabled) << "\n"
+        << "velocity    "
+        << hudToggle(m.velocityColorsEnabled) << "\n"
+        << "glow        "
+        << hudToggle(m.glowEnabled);
+
+    const char* controls =
+        "space  pause\n"
+        "1-5    render toggles\n"
+        "=/-    add/remove particles\n"
+        "r      reset particles\n"
+        "z/x    zoom in/out\n"
+        "tab    show/hide hud\n"
+        "esc    quit";
+
+    sf::Text titleText(
+        font,
+        "BLACK HOLE LAB",
+        22
+    );
+
+    sf::Text statsText(
+        font,
+        stats.str(),
+        15
+    );
+
+    sf::Text togglesText(
+        font,
+        toggles.str(),
+        15
+    );
+
+    sf::Text controlsText(
+        font,
+        controls,
+        13
+    );
+
+    titleText.setFillColor(
+        sf::Color(255, 166, 64)
+    );
+
+    statsText.setFillColor(
+        sf::Color(225, 225, 230)
+    );
+
+    togglesText.setFillColor(
+        sf::Color(225, 225, 230)
+    );
+
+    controlsText.setFillColor(
+        sf::Color(155, 158, 168)
+    );
+
+    const float contentX = contentMargin;
+    float y = contentMargin;
+
+    titleText.setPosition(
+        {contentX, y}
+    );
+
+    y += 34.0f;
+
+    statsText.setPosition(
+        {contentX, y}
+    );
+
+    const float togglesX =
+        contentX +
+        statsText.getLocalBounds().size.x +
+        28.0f;
+
+    togglesText.setPosition(
+        {togglesX, y}
+    );
+
+    y +=
+        statsText.getLocalBounds().size.y +
+        18.0f;
+
+    controlsText.setPosition(
+        {contentX, y}
+    );
+
+    float width =
+        std::max(
+            togglesX +
+                togglesText.getLocalBounds().size.x,
+            contentX +
+                controlsText.getLocalBounds().size.x
+        ) +
+        contentMargin;
+
+    float height =
+        y +
+        controlsText.getLocalBounds().size.y +
+        contentMargin;
+
+    sf::RectangleShape panel(
+        {width, height}
+    );
+
+    panel.setPosition(
+        {panelMargin, panelMargin}
+    );
+
+    panel.setFillColor(
+        sf::Color(8, 8, 16, 185)
+    );
+
+    panel.setOutlineThickness(
+        1.0f
+    );
+
+    panel.setOutlineColor(
+        sf::Color(255, 166, 64, 80)
+    );
+
+    window.draw(panel);
+    window.draw(titleText);
+    window.draw(statsText);
+    window.draw(togglesText);
+    window.draw(controlsText);
+}
+
 int main()
 {
     std::srand(
@@ -129,6 +317,18 @@ int main()
 
     window.setVerticalSyncEnabled(false);
     window.setFramerateLimit(0);
+
+    sf::Font hudFont;
+
+    if (!hudFont.openFromFile(
+            "assets/liberation-mono.ttf"
+        ))
+    {
+        std::fprintf(
+            stderr,
+            "warning: could not load hud font\n"
+        );
+    }
 
     sf::Vector2f blackHole(
         WIDTH / 2.0f,
@@ -269,7 +469,7 @@ int main()
                 }
 
                 if (key->code ==
-                    sf::Keyboard::Key::Num7)
+                    sf::Keyboard::Key::Tab)
                 {
                     hudEnabled =
                         !hudEnabled;
@@ -607,6 +807,29 @@ int main()
         window.draw(
             blackHoleShape
         );
+
+        // HUD
+        if (hudEnabled)
+        {
+            HudMetrics metrics;
+            metrics.particleCount =
+                particles.size();
+            metrics.fps = fps;
+            metrics.physicsMs = physicsMs;
+            metrics.renderMs = renderMs;
+            metrics.zoom = zoom;
+            metrics.paused = paused;
+            metrics.brightnessEnabled =
+                brightnessEnabled;
+            metrics.diskEnabled = diskEnabled;
+            metrics.trailsEnabled =
+                trailsEnabled;
+            metrics.velocityColorsEnabled =
+                velocityColorsEnabled;
+            metrics.glowEnabled = glowEnabled;
+
+            drawHud(window, hudFont, metrics);
+        }
 
         window.display();
 

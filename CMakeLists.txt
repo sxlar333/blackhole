@@ -16,3 +16,11 @@ target_link_libraries(blackhole PRIVATE
     SFML::Window
     SFML::System
 )
+
+add_custom_command(
+    TARGET blackhole POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/assets/liberation-mono.ttf"
+        "$<TARGET_FILE_DIR:blackhole>/assets/liberation-mono.ttf"
+    VERBATIM
+)

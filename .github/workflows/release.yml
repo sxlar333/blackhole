@@ -84,6 +84,8 @@ jobs:
 
           cp build/blackhole package/blackhole
 
+          cp -r build/assets package/assets
+
           tar \
             -czf blackhole-linux-x64.tar.gz \
             -C package \
@@ -165,6 +167,11 @@ jobs:
           Copy-Item `
             build/Release/blackhole.exe `
             package/blackhole.exe
+
+          Copy-Item `
+            -Recurse `
+            build/Release/assets `
+            package/assets
 
           Copy-Item `
             "SFML-3.0.2/bin/*.dll" `
