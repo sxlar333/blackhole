@@ -24,10 +24,140 @@ constexpr float G = 5000.0f;
 constexpr float BLACK_HOLE_MASS = 1000.0f;
 constexpr float EVENT_HORIZON = 18.0f;
 
-constexpr int INITIAL_PARTICLES = 100000;
-constexpr int PARTICLES_PER_LEVEL = 100000;
-constexpr float LEVEL_SECONDS = 10.0f;
-constexpr float MAX_BENCHMARK_SECONDS = 120.0f;
+struct BenchmarkConfig
+{
+    int initialParticles = 100000;
+    int particlesPerLevel = 100000;
+    float levelSeconds = 10.0f;
+    int maxLevels = 12;
+
+    float maxDuration() const
+    {
+        return levelSeconds * static_cast<float>(maxLevels);
+    }
+};
+
+constexpr int FIELD_COUNT = 4;
+
+struct SetupState
+{
+    std::string levels;
+    std::string levelSeconds;
+    std::string increment;
+    std::string initial;
+    int selected = 0;
+};
+
+const std::string& fieldInput(const SetupState& state, int index)
+{
+    switch (index)
+    {
+        case 0: return state.levels;
+        case 1: return state.levelSeconds;
+        case 2: return state.increment;
+        default: return state.initial;
+    }
+}
+
+std::string& fieldInput(SetupState& state, int index)
+{
+    switch (index)
+    {
+        case 0: return state.levels;
+        case 1: return state.levelSeconds;
+        case 2: return state.increment;
+        default: return state.initial;
+    }
+}
+
+int parseCount(
+    const std::string& input,
+    int fallback,
+    int minValue
+)
+{
+    if (input.empty())
+        return fallback;
+
+    try
+    {
+        long long value = std::stoll(input);
+
+        value =
+            std::max(
+                value,
+                static_cast<long long>(minValue)
+            );
+
+        value =
+            std::min(
+                value,
+                1000000000LL
+            );
+
+        return static_cast<int>(value);
+    }
+    catch (...)
+    {
+        return fallback;
+    }
+}
+
+float parseSeconds(
+    const std::string& input,
+    float fallback
+)
+{
+    if (input.empty())
+        return fallback;
+
+    try
+    {
+        long long value = std::stoll(input);
+
+        value =
+            std::max(
+                value,
+                1LL
+            );
+
+        return static_cast<float>(value);
+    }
+    catch (...)
+    {
+        return fallback;
+    }
+}
+
+BenchmarkConfig parseSetup(const SetupState& state)
+{
+    BenchmarkConfig config;
+
+    config.maxLevels =
+        parseCount(state.levels, config.maxLevels, 1);
+
+    config.levelSeconds =
+        parseSeconds(
+            state.levelSeconds,
+            config.levelSeconds
+        );
+
+    config.particlesPerLevel =
+        parseCount(
+            state.increment,
+            config.particlesPerLevel,
+            0
+        );
+
+    config.initialParticles =
+        parseCount(
+            state.initial,
+            config.initialParticles,
+            0
+        );
+
+    return config;
+}
 
 unsigned int rngState = 0;
 
@@ -118,6 +248,180 @@ std::string formatMs(float ms)
     return out.str();
 }
 
+void drawSetupScreen(
+    sf::RenderWindow& window,
+    const sf::Font& font,
+    const SetupState& state
+)
+{
+    const BenchmarkConfig defaults;
+    const BenchmarkConfig preview = parseSetup(state);
+
+    static const char* labels[FIELD_COUNT] = {
+        "levels",
+        "level length",
+        "increment",
+        "initial particles"
+    };
+
+    static const char* suffixes[FIELD_COUNT] = {
+        "",
+        " s",
+        "",
+        ""
+    };
+
+    const float startY = 200.0f;
+    const float lineHeight = 36.0f;
+    const float labelX = 440.0f;
+    const float valueX = 650.0f;
+
+    sf::Text title(
+        font,
+        "BENCHMARK SETUP",
+        26
+    );
+
+    title.setFillColor(
+        sf::Color(255, 166, 64)
+    );
+
+    title.setPosition(
+        {labelX - 40.0f, 140.0f}
+    );
+
+    window.draw(title);
+
+    for (int i = 0; i < FIELD_COUNT; ++i)
+    {
+        const std::string& input =
+            fieldInput(state, i);
+
+        std::string value;
+        bool editing = !input.empty();
+
+        if (editing)
+        {
+            value = input;
+        }
+        else
+        {
+            switch (i)
+            {
+                case 0:
+                    value =
+                        std::to_string(
+                            defaults.maxLevels
+                        );
+                    break;
+
+                case 1:
+                    value =
+                        std::to_string(
+                            static_cast<int>(
+                                defaults.levelSeconds
+                            )
+                        );
+                    break;
+
+                case 2:
+                    value =
+                        std::to_string(
+                            defaults.particlesPerLevel
+                        );
+                    break;
+
+                default:
+                    value =
+                        std::to_string(
+                            defaults.initialParticles
+                        );
+                    break;
+            }
+        }
+
+        value += suffixes[i];
+
+        sf::Text label(
+            font,
+            labels[i],
+            16
+        );
+
+        sf::Text valueText(
+            font,
+            value,
+            16
+        );
+
+        if (i == state.selected)
+        {
+            label.setFillColor(
+                sf::Color(255, 166, 64)
+            );
+
+            valueText.setFillColor(
+                sf::Color(255, 220, 170)
+            );
+        }
+        else
+        {
+            label.setFillColor(
+                sf::Color(155, 158, 168)
+            );
+
+            valueText.setFillColor(
+                editing
+                    ? sf::Color(225, 225, 230)
+                    : sf::Color(120, 122, 132)
+            );
+        }
+
+        label.setPosition(
+            {labelX, startY + i * lineHeight}
+        );
+
+        valueText.setPosition(
+            {valueX, startY + i * lineHeight}
+        );
+
+        window.draw(label);
+        window.draw(valueText);
+    }
+
+    std::ostringstream hints;
+    hints
+        << "UP / DOWN       select field\n"
+        << "0-9             type a value  (leave empty = default)\n"
+        << "BACKSPACE       delete last digit\n"
+        << "\n"
+        << "estimated total "
+        << formatSeconds(preview.maxDuration())
+        << " s\n"
+        << "\n"
+        << "ENTER           start benchmark\n"
+        << "ESC             quit";
+
+    sf::Text hintText(
+        font,
+        hints.str(),
+        13
+    );
+
+    hintText.setFillColor(
+        sf::Color(120, 122, 132)
+    );
+
+    hintText.setPosition(
+        {
+            labelX - 40.0f,
+            startY + FIELD_COUNT * lineHeight + 26.0f
+        }
+    );
+
+    window.draw(hintText);
+}
+
 void drawPanel(
     sf::RenderWindow& window,
     const sf::Font& font,
@@ -149,7 +453,9 @@ void drawLiveHud(
     float totalSeconds,
     float fps,
     float physicsMs,
-    float renderMs
+    float renderMs,
+    float levelDuration,
+    float maxDuration
 )
 {
     std::ostringstream hud;
@@ -167,12 +473,12 @@ void drawLiveHud(
         << "level time "
         << formatSeconds(levelSeconds)
         << "s / "
-        << formatSeconds(LEVEL_SECONDS)
+        << formatSeconds(levelDuration)
         << "s\n"
         << "total time "
         << formatSeconds(totalSeconds)
         << "s / "
-        << formatSeconds(MAX_BENCHMARK_SECONDS)
+        << formatSeconds(maxDuration)
         << "s\n"
         << "fps        "
         << formatFps(fps)
@@ -464,6 +770,102 @@ int main()
         );
     }
 
+    SetupState setup;
+
+    bool start = false;
+    bool quit = false;
+
+    while (window.isOpen())
+    {
+        while (auto event = window.pollEvent())
+        {
+            if (event->is<sf::Event::Closed>())
+                window.close();
+
+            if (auto* key =
+                event->getIf<sf::Event::KeyPressed>())
+            {
+                if (key->code ==
+                    sf::Keyboard::Key::Up)
+                {
+                    setup.selected =
+                        (setup.selected +
+                         FIELD_COUNT - 1) %
+                        FIELD_COUNT;
+                }
+                else if (key->code ==
+                    sf::Keyboard::Key::Down)
+                {
+                    setup.selected =
+                        (setup.selected + 1) %
+                        FIELD_COUNT;
+                }
+                else if (key->code ==
+                    sf::Keyboard::Key::Backspace)
+                {
+                    std::string& input =
+                        fieldInput(
+                            setup,
+                            setup.selected
+                        );
+
+                    if (!input.empty())
+                        input.pop_back();
+                }
+                else if (key->code ==
+                    sf::Keyboard::Key::Enter)
+                {
+                    start = true;
+                }
+                else if (key->code ==
+                    sf::Keyboard::Key::Escape)
+                {
+                    quit = true;
+                }
+            }
+
+            if (auto* text =
+                event->getIf<sf::Event::TextEntered>())
+            {
+                if (text->unicode >= U'0' &&
+                    text->unicode <= U'9')
+                {
+                    std::string& input =
+                        fieldInput(
+                            setup,
+                            setup.selected
+                        );
+
+                    input +=
+                        static_cast<char>(
+                            text->unicode
+                        );
+                }
+            }
+        }
+
+        if (start || quit)
+            break;
+
+        window.clear(
+            sf::Color(2, 2, 8)
+        );
+
+        drawSetupScreen(
+            window,
+            hudFont,
+            setup
+        );
+
+        window.display();
+    }
+
+    if (quit || !window.isOpen())
+        return 0;
+
+    const BenchmarkConfig config =
+        parseSetup(setup);
+
     sf::Vector2f blackHole(
         WIDTH / 2.0f,
         HEIGHT / 2.0f
@@ -489,7 +891,7 @@ int main()
 
     addParticles(
         particles,
-        INITIAL_PARTICLES,
+        config.initialParticles,
         blackHole
     );
 
@@ -502,10 +904,7 @@ int main()
     sf::Clock benchmarkClock;
     sf::Clock fpsClock;
 
-    const int maxLevels =
-        static_cast<int>(
-            MAX_BENCHMARK_SECONDS / LEVEL_SECONDS
-        );
+    const int maxLevels = config.maxLevels;
 
     int level = 1;
     int frames = 0;
@@ -569,7 +968,7 @@ int main()
         {
             addParticles(
                 particles,
-                PARTICLES_PER_LEVEL,
+                config.particlesPerLevel,
                 blackHole
             );
 
@@ -731,7 +1130,9 @@ int main()
             benchmarkClock.getElapsedTime().asSeconds(),
             fps,
             physicsMs,
-            renderMs
+            renderMs,
+            config.levelSeconds,
+            config.maxDuration()
         );
 
         window.display();
@@ -775,7 +1176,7 @@ int main()
             benchmarkClock
                 .getElapsedTime()
                 .asSeconds()
-                >= MAX_BENCHMARK_SECONDS
+                >= config.maxDuration()
         )
         {
             finishLevel();
@@ -785,7 +1186,7 @@ int main()
             levelClock
                 .getElapsedTime()
                 .asSeconds()
-                >= LEVEL_SECONDS
+                >= config.levelSeconds
         )
         {
             finishLevel();
