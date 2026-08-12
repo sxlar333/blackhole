@@ -107,14 +107,30 @@ jobs:
       - name: Install SFML 3.0.2
         shell: pwsh
         run: |
-          curl.exe `
-            --retry 5 `
-            --retry-delay 10 `
-            --retry-all-errors `
-            --location `
-            --fail `
-            --output sfml.zip `
+          $urls = @(
+            "https://www.sfml-dev.org/files/SFML-3.0.2-windows-vc17-64-bit.zip",
             "https://github.com/SFML/SFML/releases/download/3.0.2/SFML-3.0.2-Windows.VS2022.x64.zip"
+          )
+
+          foreach ($url in $urls) {
+            curl.exe `
+              --retry 3 `
+              --retry-delay 5 `
+              --retry-all-errors `
+              --location `
+              --fail `
+              --silent `
+              --output sfml.zip `
+              $url
+
+            if ($LASTEXITCODE -eq 0 -and (Test-Path sfml.zip) -and (Get-Item sfml.zip).Length -gt 0) {
+              break
+            }
+          }
+
+          if (-not (Test-Path sfml.zip) -or (Get-Item sfml.zip).Length -eq 0) {
+            throw "Failed to download SFML 3.0.2"
+          }
 
           Expand-Archive `
             -Path sfml.zip `
