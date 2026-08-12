@@ -1,0 +1,107 @@
+name: Build Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            libsfml-dev \
+            cmake \
+            build-essential
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release -j2
+
+      - name: Package
+        run: |
+          mkdir release
+          cp build/blackhole release/blackhole
+          tar -czf blackhole-linux-x64.tar.gz -C release blackhole
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: blackhole-linux-x64
+          path: blackhole-linux-x64.tar.gz
+
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install SFML
+        run: |
+          vcpkg install sfml:x64-windows
+
+      - name: Configure
+        run: |
+          cmake -S . -B build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force release
+          Copy-Item build/Release/blackhole.exe release/blackhole.exe
+          Compress-Archive `
+            -Path release/blackhole.exe `
+            -DestinationPath blackhole-windows-x64.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: blackhole-windows-x64
+          path: blackhole-windows-x64.zip
+
+  release:
+    name: Create GitHub Release
+    needs:
+      - build-linux
+      - build-windows
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: blackhole-linux-x64
+          path: release
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: blackhole-windows-x64
+          path: release
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true
