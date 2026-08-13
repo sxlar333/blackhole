@@ -18,10 +18,10 @@ const Mode = enum {
         };
     }
 
-    fn binaryName(self: Mode) []const u8 {
+    fn binaryName(self: Mode, alloc: Allocator) []const u8 {
         const base = self.binaryBase();
         if (comptime @import("builtin").os.tag == .windows) {
-            return base ++ ".exe";
+            return std.fmt.allocPrint(alloc, "{s}.exe", .{base}) catch @panic("OOM");
         }
         return base;
     }
@@ -482,7 +482,7 @@ fn fileExists(io: Io, path: []const u8) !bool {
 }
 
 fn findBinary(io: Io, gpa: Allocator, mode: Mode, bin_dir: ?[]const u8, exe_dir: []const u8) ![]const u8 {
-    const exe_name = mode.binaryName();
+    const exe_name = mode.binaryName(gpa);
 
     if (bin_dir) |dir| {
         const path = try std.fs.path.join(gpa, &.{ dir, exe_name });
