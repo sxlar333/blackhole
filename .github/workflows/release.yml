@@ -82,18 +82,27 @@ jobs:
         run: |
           mkdir package
 
-          cp build/blackhole package/blackhole
+          cp bin/blackhole package/blackhole
 
-          cp build/benchmark package/benchmark
+          cp bin/benchmark package/benchmark
 
-          cp -r build/assets package/assets
+          cp bin/nbody package/nbody
+
+          cp bin/barnes_hut package/barnes_hut
+
+          cp -r bin/assets package/assets
+
+          cp config.ini package/config.ini
 
           tar \
             -czf blackhole-linux-x64.tar.gz \
             -C package \
             blackhole \
             benchmark \
-            assets
+            nbody \
+            barnes_hut \
+            assets \
+            config.ini
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
@@ -169,17 +178,29 @@ jobs:
             package
 
           Copy-Item `
-            build/Release/blackhole.exe `
+            bin/Release/blackhole.exe `
             package/blackhole.exe
 
           Copy-Item `
-            build/Release/benchmark.exe `
+            bin/Release/benchmark.exe `
             package/benchmark.exe
 
           Copy-Item `
+            bin/Release/nbody.exe `
+            package/nbody.exe
+
+          Copy-Item `
+            bin/Release/barnes_hut.exe `
+            package/barnes_hut.exe
+
+          Copy-Item `
             -Recurse `
-            build/Release/assets `
+            bin/Release/assets `
             package/assets
+
+          Copy-Item `
+            config.ini `
+            package/config.ini
 
           Copy-Item `
             "SFML-3.0.2/bin/*.dll" `
