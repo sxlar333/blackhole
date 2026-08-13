@@ -78,6 +78,25 @@ jobs:
             --build build \
             --parallel 2
 
+      - name: Install Zig 0.16.0
+        run: |
+          curl \
+            -sL \
+            https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz \
+            -o zig.tar.xz
+
+          tar -xf zig.tar.xz
+
+          ./zig-x86_64-linux-0.16.0/zig version
+
+      - name: Build runner
+        run: |
+          ./zig-x86_64-linux-0.16.0/zig \
+            build-exe \
+            run.zig \
+            -O ReleaseSafe \
+            -femit-bin=bin/blackhole-runner
+
       - name: Package
         run: |
           mkdir package
@@ -90,6 +109,8 @@ jobs:
 
           cp bin/barnes_hut package/barnes_hut
 
+          cp bin/blackhole-runner package/blackhole-runner
+
           cp -r bin/assets package/assets
 
           cp config.ini package/config.ini
@@ -101,6 +122,7 @@ jobs:
             benchmark \
             nbody \
             barnes_hut \
+            blackhole-runner \
             assets \
             config.ini
 
@@ -169,6 +191,29 @@ jobs:
             --build build `
             --config Release
 
+      - name: Install Zig 0.16.0
+        shell: pwsh
+        run: |
+          curl.exe `
+            -L `
+            https://ziglang.org/download/0.16.0/zig-x86_64-windows-0.16.0.zip `
+            -o zig.zip
+
+          Expand-Archive `
+            -Path zig.zip `
+            -DestinationPath .
+
+          .\zig-x86_64-windows-0.16.0\zig.exe version
+
+      - name: Build runner
+        shell: pwsh
+        run: |
+          .\zig-x86_64-windows-0.16.0\zig.exe `
+            build-exe `
+            run.zig `
+            -O ReleaseSafe `
+            -femit-bin=bin/Release/blackhole-runner.exe
+
       - name: Package
         shell: pwsh
         run: |
@@ -192,6 +237,10 @@ jobs:
           Copy-Item `
             bin/Release/barnes_hut.exe `
             package/barnes_hut.exe
+
+          Copy-Item `
+            bin/Release/blackhole-runner.exe `
+            package/blackhole-runner.exe
 
           Copy-Item `
             -Recurse `
