@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <iomanip>
 
+#include "config.h"
+
 struct Particle
 {
     sf::Vector2f position;
@@ -18,11 +20,11 @@ struct Particle
 constexpr unsigned int WIDTH = 1280;
 constexpr unsigned int HEIGHT = 720;
 
-constexpr float G = 5000.0f;
-constexpr float BLACK_HOLE_MASS = 1000.0f;
-constexpr float EVENT_HORIZON = 18.0f;
+float G = 5000.0f;
+float BLACK_HOLE_MASS = 1000.0f;
+float EVENT_HORIZON = 18.0f;
 
-constexpr int PARTICLES_PER_STEP = 1000;
+int PARTICLES_PER_STEP = 1000;
 
 unsigned int rngState = 0;
 
@@ -308,12 +310,22 @@ void drawHud(
     window.draw(controlsText);
 }
 
-int main()
+int main(int argc, char** argv)
 {
     rngState =
         static_cast<unsigned>(
             std::time(nullptr)
         ) | 1u;
+
+    const Config config =
+        loadConfig(argc, argv, "main");
+
+    G = config.g;
+    BLACK_HOLE_MASS = config.blackHoleMass;
+    EVENT_HORIZON = config.eventHorizon;
+    PARTICLES_PER_STEP = config.particlesPerStep;
+
+    const int initialParticles = config.particles;
 
     sf::RenderWindow window(
         sf::VideoMode({WIDTH, HEIGHT}),
@@ -344,7 +356,7 @@ int main()
 
     addParticles(
         particles,
-        10000,
+        initialParticles,
         blackHole
     );
 
@@ -583,7 +595,7 @@ int main()
 
                     addParticles(
                         particles,
-                        10000,
+                        initialParticles,
                         blackHole
                     );
                 }

@@ -9,6 +9,8 @@
 #include <sstream>
 #include <vector>
 
+#include "config.h"
+
 struct Particle
 {
     sf::Vector2f position;
@@ -19,12 +21,12 @@ struct Particle
 constexpr unsigned WIDTH = 1280;
 constexpr unsigned HEIGHT = 720;
 
-constexpr float G = 80.0f;
-constexpr float SOFTENING = 4.0f;
-constexpr float BLACK_HOLE_MASS = 50000.0f;
-constexpr float EVENT_HORIZON = 20.0f;
+float G = 80.0f;
+float SOFTENING = 4.0f;
+float BLACK_HOLE_MASS = 50000.0f;
+float EVENT_HORIZON = 20.0f;
 
-constexpr int PARTICLES_PER_STEP = 1000;
+int PARTICLES_PER_STEP = 1000;
 
 float lengthSquared(sf::Vector2f v)
 {
@@ -100,13 +102,24 @@ void addParticles(
     }
 }
 
-int main()
+int main(int argc, char** argv)
 {
     std::srand(
         static_cast<unsigned>(
             std::time(nullptr)
         )
     );
+
+    const Config config =
+        loadConfig(argc, argv, "nbody");
+
+    G = config.g;
+    SOFTENING = config.softening;
+    BLACK_HOLE_MASS = config.blackHoleMass;
+    EVENT_HORIZON = config.eventHorizon;
+    PARTICLES_PER_STEP = config.particlesPerStep;
+
+    const int initialParticles = config.particles;
 
     sf::RenderWindow window(
         sf::VideoMode({WIDTH, HEIGHT}),
@@ -126,7 +139,7 @@ int main()
     // Start small. We can make the laptop suffer later.
     addParticles(
         particles,
-        1000,
+        initialParticles,
         blackHole
     );
 
@@ -247,7 +260,7 @@ int main()
 
                     addParticles(
                         particles,
-                        1000,
+                        initialParticles,
                         blackHole
                     );
                 }

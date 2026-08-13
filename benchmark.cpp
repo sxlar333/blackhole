@@ -10,6 +10,8 @@
 #include <limits>
 #include <string>
 
+#include "config.h"
+
 struct Particle
 {
     sf::Vector2f position;
@@ -20,9 +22,9 @@ struct Particle
 constexpr unsigned int WIDTH = 1280;
 constexpr unsigned int HEIGHT = 720;
 
-constexpr float G = 5000.0f;
-constexpr float BLACK_HOLE_MASS = 1000.0f;
-constexpr float EVENT_HORIZON = 18.0f;
+float G = 5000.0f;
+float BLACK_HOLE_MASS = 1000.0f;
+float EVENT_HORIZON = 18.0f;
 
 struct BenchmarkConfig
 {
@@ -251,10 +253,10 @@ std::string formatMs(float ms)
 void drawSetupScreen(
     sf::RenderWindow& window,
     const sf::Font& font,
-    const SetupState& state
+    const SetupState& state,
+    const BenchmarkConfig& defaults
 )
 {
-    const BenchmarkConfig defaults;
     const BenchmarkConfig preview = parseSetup(state);
 
     static const char* labels[FIELD_COUNT] = {
@@ -743,12 +745,35 @@ void drawResultsPopup(
     window.draw(hintText);
 }
 
-int main()
+int main(int argc, char** argv)
 {
     rngState =
         static_cast<unsigned>(
             std::time(nullptr)
         ) | 1u;
+
+    const Config fileConfig =
+        loadConfig(argc, argv, "benchmark");
+
+    G = fileConfig.g;
+    BLACK_HOLE_MASS = fileConfig.blackHoleMass;
+    EVENT_HORIZON = fileConfig.eventHorizon;
+
+    BenchmarkConfig setupDefaults;
+
+    setupDefaults.initialParticles =
+        fileConfig.benchmarkInitialParticles;
+
+    setupDefaults.particlesPerLevel =
+        fileConfig.benchmarkParticlesPerLevel;
+
+    setupDefaults.levelSeconds =
+        static_cast<float>(
+            fileConfig.benchmarkLevelSeconds
+        );
+
+    setupDefaults.maxLevels =
+        fileConfig.benchmarkMaxLevels;
 
     sf::RenderWindow window(
         sf::VideoMode({WIDTH, HEIGHT}),
@@ -854,7 +879,8 @@ int main()
         drawSetupScreen(
             window,
             hudFont,
-            setup
+            setup,
+            setupDefaults
         );
 
         window.display();

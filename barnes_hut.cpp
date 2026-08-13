@@ -9,6 +9,8 @@
 #include <sstream>
 #include <vector>
 
+#include "config.h"
+
 struct Particle
 {
     sf::Vector2f position;
@@ -88,15 +90,15 @@ struct Node
 constexpr unsigned WIDTH = 1280;
 constexpr unsigned HEIGHT = 720;
 
-constexpr float G = 80.0f;
-constexpr float BLACK_HOLE_MASS = 50000.0f;
-constexpr float EVENT_HORIZON = 20.0f;
-constexpr float SOFTENING = 4.0f;
+float G = 80.0f;
+float BLACK_HOLE_MASS = 50000.0f;
+float EVENT_HORIZON = 20.0f;
+float SOFTENING = 4.0f;
 
 // Barnes-Hut accuracy parameter.
 float theta = 0.5f;
 
-constexpr int PARTICLES_PER_STEP = 1000;
+int PARTICLES_PER_STEP = 1000;
 
 float randomFloat(float min, float max)
 {
@@ -442,13 +444,25 @@ int countNodes(const Node& node)
     return count;
 }
 
-int main()
+int main(int argc, char** argv)
 {
     std::srand(
         static_cast<unsigned>(
             std::time(nullptr)
         )
     );
+
+    const Config config =
+        loadConfig(argc, argv, "barnes_hut");
+
+    G = config.g;
+    BLACK_HOLE_MASS = config.blackHoleMass;
+    EVENT_HORIZON = config.eventHorizon;
+    SOFTENING = config.softening;
+    theta = config.theta;
+    PARTICLES_PER_STEP = config.particlesPerStep;
+
+    const int initialParticles = config.particles;
 
     sf::RenderWindow window(
         sf::VideoMode({WIDTH, HEIGHT}),
@@ -467,7 +481,7 @@ int main()
 
     addParticles(
         particles,
-        10000,
+        initialParticles,
         blackHole
     );
 
@@ -580,7 +594,7 @@ int main()
 
                     addParticles(
                         particles,
-                        10000,
+                        initialParticles,
                         blackHole
                     );
                 }
