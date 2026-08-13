@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(SFML 3 REQUIRED COMPONENTS Graphics Window System)
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
+
 function(add_blackhole_target name source)
     add_executable(${name} ${source})
 
@@ -21,9 +23,6 @@ function(add_blackhole_target name source)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_SOURCE_DIR}/assets/liberation-mono.ttf"
             "$<TARGET_FILE_DIR:${name}>/assets/liberation-mono.ttf"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_SOURCE_DIR}/config.ini"
-            "$<TARGET_FILE_DIR:${name}>/config.ini"
         VERBATIM
     )
 endfunction()

@@ -352,11 +352,18 @@ pub fn main(init: std.process.Init) !void {
 
     const selected = mode.?;
 
-    // Resolve config path: default to exe_dir/config.ini.
+    // Resolve config path: default to exe_dir/config.ini, or the project
+    // root config.ini when this runner lives in a bin/ subdirectory.
     const config_path_resolved = if (config_path) |p|
         p
-    else
-        try std.fs.path.join(alloc, &.{ exe_dir, "config.ini" });
+    else blk: {
+        const direct = try std.fs.path.join(alloc, &.{ exe_dir, "config.ini" });
+        if (try fileExists(io, direct)) break :blk direct;
+
+        const parent = std.fs.path.dirname(exe_dir) orelse ".";
+        const parent_cfg = try std.fs.path.join(alloc, &.{ parent, "config.ini" });
+        break :blk parent_cfg;
+    };
 
     // Make sure a config file exists.
     const content = std.Io.Dir.cwd().readFileAlloc(io, config_path_resolved, alloc, .unlimited) catch |err| switch (err) {
@@ -483,7 +490,9 @@ fn findBinary(io: Io, gpa: Allocator, mode: Mode, bin_dir: ?[]const u8, exe_dir:
         std.debug.print("warning: no {s} in {s}\n", .{ exe_name, dir });
     }
 
-    const dirs = [_][]const u8{ exe_dir, "." };
+    const exe_dir_bin = try std.fs.path.join(gpa, &.{ exe_dir, "bin" });
+
+    const dirs = [_][]const u8{ exe_dir, exe_dir_bin, ".", "./bin" };
 
     for (dirs) |dir| {
         const path = try std.fs.path.join(gpa, &.{ dir, exe_name });
@@ -491,7 +500,7 @@ fn findBinary(io: Io, gpa: Allocator, mode: Mode, bin_dir: ?[]const u8, exe_dir:
         if (try fileExists(io, path)) return path;
     }
 
-    std.debug.print("error: could not find {s} next to this runner or in the current directory\n", .{exe_name});
+    std.debug.print("error: could not find {s} next to this runner, in bin/, or in the current directory\n", .{exe_name});
     return error.BinaryNotFound;
 }
 
